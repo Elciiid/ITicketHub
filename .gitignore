@@ -1,0 +1,13 @@
+# Database configuration
+db/db.php
+
+# Uploads and User Files
+uploads/
+uploads_pic/
+
+# OS-specific files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log

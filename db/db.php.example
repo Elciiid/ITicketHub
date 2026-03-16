@@ -1,0 +1,15 @@
+# ITicketHub - Local Development Configuration
+# Copy this to db.php and update with your local credentials
+
+<?php
+// Database connection
+$dsn = "sqlsrv:Server=10.2.0.9;Database=LRNPH_E;TrustServerCertificate=1;Encrypt=0";
+$db_username = "YOUR_USERNAME";
+$db_password = "YOUR_PASSWORD";
+
+try {
+    $conn = new PDO($dsn, $db_username, $db_password);
+    $conn->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+} catch (PDOException $e) {
+    die("Connection failed: " . $e->getMessage());
+}
