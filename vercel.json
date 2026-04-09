@@ -1,22 +1,35 @@
 {
-  "version": 2,
-  "regions": ["sin1"],
-  "functions": {
-    "**/*.php": {
-      "runtime": "vercel-php@0.7.2",
-      "includeFiles": "{includes,components,actions,utils,services,controllers,api,css,js,img}/**"
-    }
-  },
-  "routes": [
-    {
-      "src": "/(css|js|img|uploads)/(.*)",
-      "dest": "/$1/$2",
-      "continue": true
-    },
-    {
-      "src": "/(.*)",
-      "dest": "/$1",
-      "continue": true
-    }
-  ]
+    "version": 2,
+    "regions": ["sin1"],
+    "builds": [
+        { "src": "css/**", "use": "@vercel/static" },
+        { "src": "js/**", "use": "@vercel/static" },
+        { "src": "img/**", "use": "@vercel/static" },
+        { "src": "*.jpg", "use": "@vercel/static" },
+        { "src": "*.png", "use": "@vercel/static" },
+        { "src": "*.ico", "use": "@vercel/static" },
+        { 
+            "src": "**/*.php", 
+            "use": "vercel-php@0.7.2",
+            "config": {
+                "includeFiles": [
+                    "api/**", 
+                    "controllers/**", 
+                    "db/**", 
+                    "includes/**", 
+                    "services/**", 
+                    "utils/**"
+                ]
+            }
+        }
+    ],
+    "routes": [
+        { "src": "/css/(.*)", "dest": "/css/$1" },
+        { "src": "/js/(.*)", "dest": "/js/$1" },
+        { "src": "/img/(.*)", "dest": "/img/$1" },
+        { "src": "/logo.jpg", "dest": "/logo.jpg" },
+        { "src": "^/$", "dest": "/index.php" },
+        { "src": "/(.*)", "dest": "/$1" }
+    ]
 }
+
