@@ -13,7 +13,7 @@ if ($ticketId <= 0) {
 try {
     // Fetch the survey row
     $sql = "SELECT id, ticket_id, requestor_empcode, q1, q2, q3, q4, q5, q6, q7, q8, q9, q10, comments, submitted_at 
-            FROM dbo.ticket_surveys 
+            FROM ticket_surveys 
             WHERE ticket_id = ?";
     $stmt = $conn->prepare($sql);
     $stmt->execute([$ticketId]);

@@ -11,34 +11,58 @@ class UserService
     }
 
     /**
+     * Authenticate a user locally
+     */
+    public function authenticate($username, $password)
+    {
+        $sql = "SELECT empcode, ticket_role, password, isactive FROM it_ticket_roles WHERE empcode = :username LIMIT 1";
+        $stmt = $this->conn->prepare($sql);
+        $stmt->execute([':username' => $username]);
+        $user = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        if ($user && $user['isactive'] == 1 && password_verify($password, $user['password'])) {
+            // Set session variables
+            $_SESSION['user_id'] = $user['empcode'];
+            $_SESSION['username'] = $user['empcode'];
+            $_SESSION['role'] = $user['ticket_role'];
+            
+            // Log successful login
+            $this->logHistory(0, $user['empcode'], "Successfully logged in via local authentication", "Login Success");
+            
+            return true;
+        }
+        return false;
+    }
+
+    /**
      * Fetch all users with their roles for the management page
      */
     public function getManagedUsers($page = 1, $limit = 6)
     {
         $offset = ($page - 1) * $limit;
-        $sql = \"
+        $sql = "
             SELECT 
-                r.\\\"empcode\\\" as \\\"username\\\",
+                r.empcode as username,
                 COALESCE(
                     CASE 
-                        WHEN ml.\\\"lastname\\\" IS NOT NULL OR ml.\\\"firstname\\\" IS NOT NULL 
-                        THEN LTRIM(RTRIM(COALESCE(ml.\\\"lastname\\\", '') || ', ' || COALESCE(ml.\\\"firstname\\\", '') || ' ' || COALESCE(ml.\\\"middlename\\\", '')))
+                        WHEN ml.lastname IS NOT NULL OR ml.firstname IS NOT NULL 
+                        THEN TRIM(COALESCE(ml.lastname, '') || ', ' || COALESCE(ml.firstname, '') || ' ' || COALESCE(ml.middlename, ''))
                         ELSE NULL 
                     END,
-                    ojt.\\\"full_name\\\"
-                ) as \\\"fullname\\\",
-                COALESCE(ml.\\\"department\\\", 'OJT') as \\\"department\\\",
-                r.\\\"ticket_role\\\",
-                CASE WHEN r.\\\"isactive\\\" = 1 THEN 'active' ELSE 'inactive' END as \\\"status\\\"
-            FROM \\\"it_ticket_roles\\\" r
-            LEFT JOIN \\\"lrn_master_list\\\" ml 
-                ON r.\\\"empcode\\\" = ml.\\\"employeeid\\\" OR r.\\\"empcode\\\" = ml.\\\"biometricsid\\\"
-            LEFT JOIN \\\"app_ojt_employees\\\" ojt
-                ON r.\\\"empcode\\\" = ojt.\\\"employee_id\\\"
+                    ojt.full_name
+                ) as fullname,
+                COALESCE(ml.department, 'OJT') as department,
+                r.ticket_role,
+                CASE WHEN r.isactive = 1 THEN 'active' ELSE 'inactive' END as status
+            FROM it_ticket_roles r
+            LEFT JOIN lrn_master_list ml 
+                ON r.empcode = ml.employeeid OR r.empcode = ml.biometricsid
+            LEFT JOIN app_ojt_employees ojt
+                ON r.empcode = ojt.employee_id
             ORDER BY 
-                CASE WHEN ml.\\\"lastname\\\" IS NOT NULL THEN ml.\\\"lastname\\\" ELSE ojt.\\\"full_name\\\" END
+                CASE WHEN ml.lastname IS NOT NULL THEN ml.lastname ELSE ojt.full_name END
             LIMIT :limit OFFSET :offset
-        \";
+        ";
         $stmt = $this->conn->prepare($sql);
         $stmt->bindValue(':limit', $limit, PDO::PARAM_INT);
         $stmt->bindValue(':offset', $offset, PDO::PARAM_INT);
@@ -51,7 +75,7 @@ class UserService
      */
     public function countManagedUsers()
     {
-        $sql = \"SELECT COUNT(*) FROM \\\"it_ticket_roles\\\"\";
+        $sql = "SELECT COUNT(*) FROM it_ticket_roles";
         $stmt = $this->conn->prepare($sql);
         $stmt->execute();
         return $stmt->fetchColumn();
@@ -62,10 +86,9 @@ class UserService
      */
     public function getUserRole($empcode)
     {
-        $sql = \"SELECT \\\"ticket_role\\\" FROM \\\"it_ticket_roles\\\" WHERE \\\"empcode\\\" = :empcode LIMIT 1\";
+        $sql = "SELECT ticket_role FROM it_ticket_roles WHERE empcode = :empcode LIMIT 1";
         $stmt = $this->conn->prepare($sql);
         $stmt->bindValue(':empcode', $empcode);
-        $stmt->bindValue(':empcode2', $empcode);
         $stmt->execute();
         $row = $stmt->fetch(PDO::FETCH_ASSOC);
         return $row ? $row['ticket_role'] : 'user';
@@ -95,12 +118,12 @@ class UserService
         // Try master list first
         $sql = "
             SELECT
-                LTRIM(RTRIM(COALESCE(\"lastname\", '') || ', ' || COALESCE(\"firstname\", '') || ' ' || COALESCE(\"middlename\", ''))) as \"fullname\",
-                \"department\"
-            FROM \"lrn_master_list\"
-            WHERE \"employeeid\" = :empcode OR \"biometricsid\" = :empcode2
+                TRIM(COALESCE(lastname, '')) || ', ' || COALESCE(firstname, '') || ' ' || COALESCE(middlename, '') as fullname,
+                department
+            FROM lrn_master_list
+            WHERE employeeid = :empcode OR biometricsid = :empcode2
             LIMIT 1
-        \";
+        ";
         $stmt = $this->conn->prepare($sql);
         $stmt->bindValue(':empcode', $empcode);
         $stmt->bindValue(':empcode2', $empcode);
@@ -112,13 +135,14 @@ class UserService
         }
 
         // Fallback to OJT table
+        $sqlOjt = "
             SELECT
                 \"full_name\" as \"fullname\",
                 'OJT' as \"department\"
             FROM \"app_ojt_employees\"
             WHERE \"employee_id\" = :empcode
             LIMIT 1
-        \";
+        ";
         $stmtOjt = $this->conn->prepare($sqlOjt);
         $stmtOjt->bindValue(':empcode', $empcode);
         $stmtOjt->execute();
@@ -136,7 +160,7 @@ class UserService
             $this->conn->beginTransaction();
 
             // 2. Check existence in it_ticket_roles
-            $checkUser = $this->conn->prepare(\"SELECT COUNT(*) FROM \\\"it_ticket_roles\\\" WHERE \\\"empcode\\\" = :empcode\");
+            $checkUser = $this->conn->prepare("SELECT COUNT(*) FROM it_ticket_roles WHERE empcode = :empcode");
             $checkUser->execute([':empcode' => $empcode]);
             $exists = $checkUser->fetchColumn();
 
@@ -159,16 +183,16 @@ class UserService
                 $params = [':empcode' => $empcode];
 
                 if ($roleString !== null) {
-                    $fields[] = \"\\\"ticket_role\\\" = :role\";
+                    $fields[] = "ticket_role = :role";
                     $params[':role'] = $roleString;
                 }
                 if ($isActive !== null) {
-                    $fields[] = \"\\\"isactive\\\" = :isActive\";
+                    $fields[] = "isactive = :isActive";
                     $params[':isActive'] = $isActive;
                 }
 
                 if (!empty($fields)) {
-                    $sql = \"UPDATE \\\"it_ticket_roles\\\" SET \" . implode(', ', $fields) . \" WHERE \\\"empcode\\\" = :empcode\";
+                    $sql = "UPDATE it_ticket_roles SET " . implode(', ', $fields) . " WHERE empcode = :empcode";
                     $stmt = $this->conn->prepare($sql);
                     $stmt->execute($params);
                 }
@@ -181,7 +205,7 @@ class UserService
                 $newRole = $roleString ?? 'user';
                 $newActive = $isActive ?? 1;
 
-                $insert = $this->conn->prepare(\"INSERT INTO \\\"it_ticket_roles\\\" (\\\"empcode\\\", \\\"ticket_role\\\", \\\"isactive\\\") VALUES (:empcode, :role, :isActive)\");
+                $insert = $this->conn->prepare("INSERT INTO it_ticket_roles (empcode, ticket_role, isactive) VALUES (:empcode, :role, :isActive)");
                 $insert->execute([
                     ':empcode' => $empcode,
                     ':role' => $newRole,
@@ -213,33 +237,18 @@ class UserService
      */
     private function logHistory($ticketId, $user, $action, $status)
     {
-        // Get user's full name from lrn_master_list OR app_ojt_employees
-        $nameSql = "
-            SELECT TOP 1 
-                COALESCE(
-                    LTRIM(RTRIM(ISNULL(ml.LastName, '') + ', ' + ISNULL(ml.FirstName, '') + ' ' + ISNULL(ml.MiddleName, ''))),
-                    ojt.full_name,
-                    ? -- Fallback to user ID if neither found
-                ) as fullname 
-            FROM (SELECT 1 as dummy) d -- Dummy table to ensure we can left join from 'nothing' conceptually, or just select from variables
-            LEFT JOIN LRNPH_E.dbo.lrn_master_list ml 
-                ON ml.BiometricsID = ? OR ml.EmployeeID = ? OR CAST(ml.BiometricsID AS VARCHAR(50)) = ? OR CAST(ml.EmployeeID AS VARCHAR(50)) = ?
-            LEFT JOIN LRNPH_E.app.app_ojt_employees ojt
-                ON ojt.employee_id = ?
-        ";
-
         // Simpler approach: Check master list, if null check OJT
         $fullname = $user;
 
-        $stmt = $this->conn->prepare(\"SELECT LTRIM(RTRIM(COALESCE(\\\"lastname\\\", '') || ', ' || COALESCE(\\\"firstname\\\", '') || ' ' || COALESCE(\\\"middlename\\\", ''))) as \\\"fullname\\\" FROM \\\"lrn_master_list\\\" WHERE \\\"biometricsid\\\" = ? OR \\\"employeeid\\\" = ? LIMIT 1\");
+        $stmt = $this->conn->prepare("SELECT TRIM(COALESCE(\"lastname\", '') || ', ' || COALESCE(\"firstname\", '') || ' ' || COALESCE(\"middlename\", '')) as \"fullname\" FROM \"lrn_master_list\" WHERE \"biometricsid\" = ? OR \"employeeid\" = ? LIMIT 1");
         $stmt->execute([$user, $user]);
         $row = $stmt->fetch(PDO::FETCH_ASSOC);
 
-        if ($row && $row['fullname']) {
+        if ($row && !empty($row['fullname'])) {
             $fullname = $row['fullname'];
         } else {
             // Check OJT
-            $stmt = $this->conn->prepare(\"SELECT \\\"full_name\\\" FROM \\\"app_ojt_employees\\\" WHERE \\\"employee_id\\\" = ? LIMIT 1\");
+            $stmt = $this->conn->prepare("SELECT \"full_name\" FROM \"app_ojt_employees\" WHERE \"employee_id\" = ? LIMIT 1");
             $stmt->execute([$user]);
             $row = $stmt->fetch(PDO::FETCH_ASSOC);
             if ($row) {
@@ -249,8 +258,8 @@ class UserService
 
         // Insert history log
         // Note: using ticket_id = 0 for system/user logs
-        $sql = \"INSERT INTO \\\"it_ticket_history_logs\\\" (\\\"ticket_id\\\", \\\"ticket_user\\\", \\\"user_fullname\\\", \\\"action\\\", \\\"status\\\", \\\"date_time\\\") 
-                VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)\";
+        $sql = "INSERT INTO \"it_ticket_history_logs\" (\"ticket_id\", \"ticket_user\", \"user_fullname\", \"action\", \"status\", \"date_time\") 
+                VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)";
         $stmt = $this->conn->prepare($sql);
         $stmt->execute([$ticketId, $user, $fullname, $action, $status]);
     }

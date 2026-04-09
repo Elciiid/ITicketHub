@@ -46,7 +46,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         // Build dynamic insert
         $cols = "ticket_id, requestor_empcode, comments, submitted_at";
         $valsArr = [$ticket_id, $requestor_empcode, $comments];
-        $placeholders = "?, ?, ?, GETDATE()";
+        $placeholders = "?, ?, ?, CURRENT_TIMESTAMP";
 
         foreach ($answers as $col => $ans) {
             $cols .= ", $col";

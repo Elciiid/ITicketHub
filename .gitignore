@@ -10,4 +10,5 @@ uploads_pic/
 Thumbs.db
 
 # Logs
-*.log
+# Local Environment Variables
+.env

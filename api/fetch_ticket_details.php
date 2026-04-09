@@ -24,40 +24,39 @@ try {
                 itr.department, 
                 itr.subject, 
                 itr.description,
-                itr.resolution,
                 itr.assigned_to,
                 itr.reject_remarks,
                 itr.urgency_level,
                 COALESCE(
                     CASE 
-                        WHEN u.LastName IS NOT NULL OR u.FirstName IS NOT NULL 
-                        THEN LTRIM(RTRIM(ISNULL(u.LastName, '') + ', ' + ISNULL(u.FirstName, '') + ' ' + ISNULL(u.MiddleName, '')))
+                        WHEN u.lastname IS NOT NULL OR u.firstname IS NOT NULL 
+                        THEN TRIM(COALESCE(u.lastname, '') || ', ' || COALESCE(u.firstname, '') || ' ' || COALESCE(u.middlename, ''))
                         ELSE NULL 
                     END,
                     ojt_r.full_name,
                     itr.requestor
                 ) AS requestor,
                 (
-                    SELECT STRING_AGG(
+                    SELECT string_agg(
                         COALESCE(
                             CASE 
-                                WHEN e.LastName IS NOT NULL OR e.FirstName IS NOT NULL 
-                                THEN LTRIM(RTRIM(ISNULL(e.LastName, '') + ', ' + ISNULL(e.FirstName, '') + ' ' + ISNULL(e.MiddleName, '')))
+                                WHEN e.lastname IS NOT NULL OR e.firstname IS NOT NULL 
+                                THEN TRIM(COALESCE(e.lastname, '') || ', ' || COALESCE(e.firstname, '') || ' ' || COALESCE(e.middlename, ''))
                                 ELSE NULL 
                             END,
                             ojt.full_name,
-                            LTRIM(RTRIM(empcodes.value))
+                            TRIM(empcode)
                         ), 
                         ', '
                     )
-                    FROM STRING_SPLIT(ISNULL(itr.assigned_to, ''), ',') AS empcodes
-                    LEFT JOIN LRNPH_E.dbo.lrn_master_list e ON (LTRIM(RTRIM(empcodes.value)) = e.BiometricsID OR LTRIM(RTRIM(empcodes.value)) = e.EmployeeID)
-                    LEFT JOIN LRNPH_E.app.app_ojt_employees ojt ON LTRIM(RTRIM(empcodes.value)) = ojt.employee_id
-                    WHERE LTRIM(RTRIM(empcodes.value)) != ''
+                    FROM unnest(string_to_array(COALESCE(itr.assigned_to, ''), ',')) AS empcode
+                    LEFT JOIN lrn_master_list e ON (TRIM(empcode) = e.biometricsid OR TRIM(empcode) = e.employeeid)
+                    LEFT JOIN app_ojt_employees ojt ON TRIM(empcode) = ojt.employee_id
+                    WHERE TRIM(empcode) != ''
                 ) AS assigned
             FROM it_ticket_request itr
-            LEFT JOIN LRNPH_E.dbo.lrn_master_list u ON (itr.requestor = u.BiometricsID OR itr.requestor = u.EmployeeID)
-            LEFT JOIN LRNPH_E.app.app_ojt_employees ojt_r ON itr.requestor = ojt_r.employee_id
+            LEFT JOIN lrn_master_list u ON (itr.requestor = u.biometricsid OR itr.requestor = u.employeeid)
+            LEFT JOIN app_ojt_employees ojt_r ON itr.requestor = ojt_r.employee_id
             WHERE itr.id = ?";
 
     $stmt = $conn->prepare($sql);

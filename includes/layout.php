@@ -84,31 +84,9 @@ function renderRightPanel($userRole = 'user', $activePage = 'tickets')
         </button> -->
         <div class="panel-section user-card">
             <div class="user-avatar">
-                <?php
-                // Lookup the employee ID for photo display
-                $photoUsername = $_SESSION['username'] ?? '';
-
-                // Try to get BiometricsID or EmployeeID from lrn_master_list
-                if (!empty($photoUsername) && isset($GLOBALS['conn'])) {
-                    try {
-                        $photoQuery = "SELECT TOP 1 BiometricsID, EmployeeID FROM lrn_master_list WHERE BiometricsID = ? OR EmployeeID = ?";
-                        $photoStmt = $GLOBALS['conn']->prepare($photoQuery);
-                        $photoStmt->execute([$photoUsername, $photoUsername]);
-                        $photoRow = $photoStmt->fetch(PDO::FETCH_ASSOC);
-
-                        if ($photoRow) {
-                            // Prefer EmployeeID for photos
-                            $photoUsername = !empty($photoRow['EmployeeID']) ? $photoRow['EmployeeID'] : $photoRow['BiometricsID'];
-                        }
-                    } catch (Exception $e) {
-                        // If query fails, fall back to session username
-                    }
-                }
-
-
-                echo getEmployeePhotoImg($photoUsername, 'avatar-img');
-                // Debug: output what ID we're trying to load
-                echo "<!-- Photo lookup using ID: " . htmlspecialchars($photoUsername) . " -->";
+                <?php 
+                $avatarUsername = $_SESSION['username'] ?? '';
+                echo getEmployeePhotoImg($avatarUsername, 'avatar-img'); 
                 ?>
             </div>
             <h3>

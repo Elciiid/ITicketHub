@@ -1,12 +1,11 @@
 <?php
-session_start();
 include 'includes/db.php';
 
 date_default_timezone_set('Asia/Manila'); // Set PHP timezone to PH
 
-if (!isset($_SESSION['username'])) {
-    $_SESSION['redirect_after_login'] = 'http://10.2.0.8/ITicketHub/dashboard.php';
-    header("Location: http://10.2.0.8/lrnph/login.php");
+if (empty($_SESSION['username'])) {
+    $_SESSION['redirect_after_login'] = 'dashboard.php';
+    header("Location: login.php");
     exit();
 }
 
@@ -65,7 +64,7 @@ $query = "SELECT
     COALESCE(c.\"category_name\", 'Uncategorized') AS \"category_name\"
 FROM \"it_ticket_request\" itr
 LEFT JOIN \"lrn_master_list\" ml ON itr.\"requestor\" = ml.\"biometricsid\"
-LEFT JOIN \"it_ticket_categ\" c ON itr.\"categ_id\" = c.\"id\"
+LEFT JOIN \"it_ticket_categ\" c ON itr.\"categ_name\" = c.\"category_name\"
 WHERE 1=1";
 
 // Apply role-based filtering
@@ -105,7 +104,7 @@ if ($urgencyFilter) {
     $query .= " AND itr.urgency_level = :urgency_level";
 }
 
-$query .= " ORDER BY itr.date_created DESC OFFSET :offset ROWS FETCH NEXT :limit ROWS ONLY";
+$query .= " ORDER BY itr.date_created DESC LIMIT :limit OFFSET :offset";
 
 $stmt = $conn->prepare($query);
 
@@ -151,7 +150,7 @@ foreach ($tickets as &$ticket) {
         $empcodes = array_filter(array_map('trim', explode(',', $ticket['assigned_to'])));
         if (!empty($empcodes)) {
             $placeholders = implode(',', array_fill(0, count($empcodes), '?'));
-            $nameStmt = $conn->prepare("SELECT FirstName FROM lrn_master_list WHERE BiometricsID IN ($placeholders)");
+            $nameStmt = $conn->prepare("SELECT firstname FROM lrn_master_list WHERE biometricsid IN ($placeholders)");
             $nameStmt->execute($empcodes);
             $names = $nameStmt->fetchAll(PDO::FETCH_COLUMN);
             if (!empty($names)) {
@@ -288,12 +287,12 @@ $yearEnd = date('Y-12-31 23:59:59');
 // Query for total tickets per month — SARGable date filter
 $monthlyTicketsQuery = "
 SELECT 
-    EXTRACT(MONTH FROM \"date_created\") AS \"month\",
-    COUNT(*) AS \"created_count\",
-    SUM(CASE WHEN \"status\" = 'Closed' THEN 1 ELSE 0 END) AS \"completed_count\",
-    SUM(CASE WHEN \"status\" = 'Open' THEN 1 ELSE 0 END) AS \"open_count\"
+    EXTRACT(MONTH FROM date_created) AS month,
+    COUNT(*) AS created_count,
+    SUM(CASE WHEN status = 'Closed' THEN 1 ELSE 0 END) AS completed_count,
+    SUM(CASE WHEN status = 'Open' THEN 1 ELSE 0 END) AS open_count
 FROM 
-    \"it_ticket_request\"
+    it_ticket_request
 WHERE 
     date_created >= :year_start AND date_created <= :year_end
 ";
@@ -303,7 +302,7 @@ if (!$isITStaff) {
     $monthlyTicketsQuery .= " AND requestor = :username";
 }
 
-$monthlyTicketsQuery .= " GROUP BY MONTH(date_created) ORDER BY month";
+$monthlyTicketsQuery .= " GROUP BY month ORDER BY month";
 
 $stmt = $conn->prepare($monthlyTicketsQuery);
 $stmt->bindValue(':year_start', $yearStart);
@@ -335,10 +334,10 @@ $monthEnd = date('Y-m-t 23:59:59');
 
 $departmentRequestsQuery = "
     SELECT 
-        \"department\",
-        COUNT(*) AS \"request_count\"
+        department,
+        COUNT(*) AS request_count
     FROM 
-        \"it_ticket_request\"
+        it_ticket_request
     WHERE 
         date_created >= :month_start AND date_created <= :month_end
 ";
@@ -374,14 +373,14 @@ foreach ($departmentRequestsResults as $row) {
 // Tickets per day query — SARGable date filter (no CAST)
 $ticketsPerDayQuery = "
 SELECT 
-    EXTRACT(DOW FROM \"completed_by_dt\") + 1 AS \"day_of_week\",
-    TO_CHAR(\"completed_by_dt\", 'Day') AS \"day_name\",
-    COUNT(*) AS \"closed_tickets_count\"
+    EXTRACT(DOW FROM completed_by_dt) AS day_of_week,
+    TO_CHAR(completed_by_dt, 'Day') AS day_name,
+    COUNT(*) AS closed_tickets_count
 FROM 
-    \"it_ticket_request\"
+    it_ticket_request
 WHERE 
-    \"status\" = 'Closed'
-    AND \"completed_by_dt\" >= :date_from AND \"completed_by_dt\" < (CAST(:date_to AS DATE) + INTERVAL '1 day')
+    status = 'Closed'
+    AND completed_by_dt >= :date_from AND completed_by_dt < (CAST(:date_to AS DATE) + INTERVAL '1 day')
 ";
 
 // Apply role filtering to tickets per day stats
@@ -389,7 +388,7 @@ if (!$isITStaff) {
     $ticketsPerDayQuery .= " AND requestor = :username";
 }
 
-$ticketsPerDayQuery .= " GROUP BY DATEPART(dw, completed_by_dt), DATENAME(dw, completed_by_dt)
+$ticketsPerDayQuery .= " GROUP BY day_of_week, day_name
                          ORDER BY day_of_week";
 
 // Default date range if not provided

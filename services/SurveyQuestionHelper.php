@@ -20,10 +20,10 @@ class SurveyQuestionHelper
     {
         try {
             $offset = ($page - 1) * $limit;
-            $sql = "SELECT [id], [question_text], [sort_order], [is_active] 
-                    FROM [survey_questions] 
-                    ORDER BY [sort_order] ASC, [id] ASC 
-                    OFFSET :offset ROWS FETCH NEXT :limit ROWS ONLY";
+            $sql = "SELECT id, question_text, sort_order, is_active 
+                    FROM survey_questions 
+                    ORDER BY sort_order ASC, id ASC 
+                    LIMIT :limit OFFSET :offset";
             $stmt = $this->conn->prepare($sql);
             $stmt->bindValue(':offset', $offset, PDO::PARAM_INT);
             $stmt->bindValue(':limit', $limit, PDO::PARAM_INT);
@@ -53,7 +53,7 @@ class SurveyQuestionHelper
     public function getNextSortOrder()
     {
         try {
-            $sql = "SELECT ISNULL(MAX(sort_order), 0) + 1 FROM survey_questions";
+            $sql = "SELECT COALESCE(MAX(sort_order), 0) + 1 FROM survey_questions";
             $stmt = $this->conn->prepare($sql);
             $stmt->execute();
             return (int) $stmt->fetchColumn();
@@ -125,7 +125,7 @@ class SurveyQuestionHelper
     public function getQuestion($id)
     {
         try {
-            $sql = "SELECT [id], [question_text], [sort_order], [is_active] FROM survey_questions WHERE id = ?";
+            $sql = "SELECT id, question_text, sort_order, is_active FROM survey_questions WHERE id = ?";
             $stmt = $this->conn->prepare($sql);
             $stmt->execute([$id]);
             return $stmt->fetch(PDO::FETCH_ASSOC);
@@ -142,7 +142,7 @@ class SurveyQuestionHelper
         $fullname = $user;
 
         // Try to get full name from master list
-        $stmt = $this->conn->prepare("SELECT TOP 1 LTRIM(RTRIM(ISNULL(LastName, '') + ', ' + ISNULL(FirstName, '') + ' ' + ISNULL(MiddleName, ''))) as fullname FROM LRNPH_E.dbo.lrn_master_list WHERE BiometricsID = ? OR EmployeeID = ?");
+        $stmt = $this->conn->prepare("SELECT TRIM(COALESCE(lastname, '') || ', ' || COALESCE(firstname, '') || ' ' || COALESCE(middlename, '')) as fullname FROM lrn_master_list WHERE biometricsid = ? OR employeeid = ? LIMIT 1");
         $stmt->execute([$user, $user]);
         $row = $stmt->fetch(PDO::FETCH_ASSOC);
 
@@ -150,7 +150,7 @@ class SurveyQuestionHelper
             $fullname = $row['fullname'];
         } else {
             // Check OJT
-            $stmt = $this->conn->prepare("SELECT TOP 1 full_name FROM LRNPH_E.app.app_ojt_employees WHERE employee_id = ?");
+            $stmt = $this->conn->prepare("SELECT full_name FROM app_ojt_employees WHERE employee_id = ? LIMIT 1");
             $stmt->execute([$user]);
             $row = $stmt->fetch(PDO::FETCH_ASSOC);
             if ($row) {
@@ -160,7 +160,7 @@ class SurveyQuestionHelper
 
         // Insert history log (ticket_id = 0 for system/management logs)
         $sql = "INSERT INTO it_ticket_history_logs (ticket_id, ticket_user, user_fullname, action, status, date_time) 
-                VALUES (0, ?, ?, ?, ?, GETDATE())";
+                VALUES (0, ?, ?, ?, ?, CURRENT_TIMESTAMP)";
         $stmt = $this->conn->prepare($sql);
         $stmt->execute([$user, $fullname, $action, $status]);
     }

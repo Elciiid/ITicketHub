@@ -19,8 +19,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 SET 
                     status = :status,
                     completed_by = :username,
-                    completed_by_dt = GETDATE(),
-                    date_updated = GETDATE(),
+                    completed_by_dt = CURRENT_TIMESTAMP,
+                    date_updated = CURRENT_TIMESTAMP,
                     resolution = :remarks
                 WHERE id = :ticketId
             ";
@@ -30,7 +30,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 UPDATE it_ticket_request
                 SET 
                     status = :status,
-                    date_updated = GETDATE(),
+                    date_updated = CURRENT_TIMESTAMP,
                     resolution = :remarks
                 WHERE id = :ticketId
             ";
@@ -51,7 +51,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $historyAction = "Ticket updated to $status";
         $historySql = "
             INSERT INTO it_ticket_history_logs (ticket_id, ticket_user, user_fullname, action, status, remarks, date_time)
-            VALUES (:ticketId, :username, :fullname, :action, :status, :remarks, GETDATE())
+            VALUES (:ticketId, :username, :fullname, :action, :status, :remarks, CURRENT_TIMESTAMP)
         ";
         $historyStmt = $conn->prepare($historySql);
         $historyStmt->bindParam(':ticketId', $ticketId);
@@ -78,7 +78,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $filePath = "uploads_pic/$ticketId/$newFileName";
                     $attachSql = "
                         INSERT INTO it_ticket_pic_attachments (ticketid, filepath, created_at, uploaded_by)
-                        VALUES (?, ?, GETDATE(), ?)
+                        VALUES (?, ?, CURRENT_TIMESTAMP, ?)
                     ";
                     $attachStmt = $conn->prepare($attachSql);
                     $attachStmt->execute([$ticketId, $filePath, $fullname]);

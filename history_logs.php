@@ -65,7 +65,7 @@ if (!empty($actionType)) {
 // Add date filter
 if ($days != 'all') {
     $daysInt = intval($days);
-    $sql .= " AND h.date_time >= DATEADD(day, -$daysInt, GETDATE())";
+    $sql .= " AND h.date_time >= CURRENT_TIMESTAMP - (INTERVAL '1 day' * $daysInt)";
 }
 
 // Count total records for pagination
@@ -83,8 +83,7 @@ $totalPages = ceil($totalRecords / $recordsPerPage);
 
 // Add ORDER BY and OFFSET FETCH for pagination
 $sql .= " ORDER BY h.date_time DESC
-          OFFSET ? ROWS
-          FETCH NEXT ? ROWS ONLY";
+          LIMIT ? OFFSET ?";
 
 // Execute main query
 $stmt = $conn->prepare($sql);
@@ -95,8 +94,8 @@ for ($i = 0; $i < count($params); $i++) {
 }
 
 // Explicitly bind the OFFSET and FETCH parameters as integers
-$stmt->bindValue(count($params) + 1, $offset, PDO::PARAM_INT);
-$stmt->bindValue(count($params) + 2, $recordsPerPage, PDO::PARAM_INT);
+$stmt->bindValue(count($params) + 1, $recordsPerPage, PDO::PARAM_INT);
+$stmt->bindValue(count($params) + 2, $offset, PDO::PARAM_INT);
 
 $stmt->execute();
 $logs = $stmt->fetchAll(PDO::FETCH_ASSOC);

@@ -1,30 +1,30 @@
 <?php
-include 'controllers/it_tickets_controller.php';
-include 'api/fetch_categ.php';
-include 'api/photo_helper.php';
-include 'includes/db.php';
+require_once 'includes/db.php';
+require_once 'controllers/it_tickets_controller.php';
+require_once 'api/fetch_categ.php';
+require_once 'api/photo_helper.php';
+
 // Fetch assignee data from the database
 $sql = "SELECT 
-    ir.\"id\",
-    LTRIM(RTRIM(ir.\"empcode\")) as \"empcode\", 
-    ml.\"biometricsid\",
-    COALESCE(ml.\"firstname\", ojt.\"full_name\", ir.\"empcode\") as \"firstname\",
+    ir.empcode as empcode, 
+    ml.biometricsid,
+    COALESCE(ml.firstname, ojt.full_name, ir.empcode) as firstname,
     COALESCE(
-        NULLIF(LTRIM(RTRIM(COALESCE(ml.\"lastname\", '') || ', ' || COALESCE(ml.\"firstname\", '') || ' ' || COALESCE(ml.\"middlename\", ''))), ',  '),
-        ojt.\"full_name\",
-        ir.\"empcode\"
-    ) as \"fullname\",
-    COALESCE(ml.\"department\", 'OJT') as \"department\"
-FROM \"it_ticket_roles\" ir 
-LEFT JOIN \"lrn_master_list\" ml ON (ml.\"biometricsid\" = ir.\"empcode\" OR ml.\"employeeid\" = ir.\"empcode\")
-LEFT JOIN \"app_ojt_employees\" ojt ON ir.\"empcode\" = ojt.\"employee_id\"
-WHERE ir.\"ticket_role\" LIKE '%it_pic%' AND ir.\"isactive\" = 1";
+        NULLIF(TRIM(COALESCE(ml.lastname, '') || ', ' || COALESCE(ml.firstname, '') || ' ' || COALESCE(ml.middlename, '')), ',  '),
+        ojt.full_name,
+        ir.empcode
+    ) as fullname,
+    COALESCE(ml.department, 'OJT') as department
+FROM it_ticket_roles ir 
+LEFT JOIN lrn_master_list ml ON (ml.biometricsid = ir.empcode OR ml.employeeid = ir.empcode)
+LEFT JOIN app_ojt_employees ojt ON ir.empcode = ojt.employee_id
+WHERE ir.ticket_role LIKE '%it_pic%' AND ir.isactive = 1";
 $stmt = $conn->prepare($sql);
 $stmt->execute();
 
 $assignees = $stmt->fetchAll(PDO::FETCH_ASSOC);
 // Fetch department data strictly from the master list
-$sqlDept = \"SELECT DISTINCT \\\"department\\\" as \\\"department\\\" FROM \\\"lrn_master_list\\\" WHERE \\\"department\\\" IS NOT NULL AND \\\"department\\\" != '' ORDER BY \\\"department\\\" ASC\";
+$sqlDept = "SELECT DISTINCT \"department\" as \"department\" FROM \"lrn_master_list\" WHERE \"department\" IS NOT NULL AND \"department\" != '' ORDER BY \"department\" ASC";
 $stmtDept = $conn->prepare($sqlDept);
 $stmtDept->execute();
 
@@ -232,7 +232,7 @@ $departments = $stmtDept->fetchAll(PDO::FETCH_ASSOC);
                     <select name="assignee" id="assignee">
                         <option value="">Assignee</option>
                         <?php foreach ($assignees as $assignee): 
-                            $assigneeVal = !empty($assignee['BiometricsID']) ? $assignee['BiometricsID'] : $assignee['empcode'];
+                            $assigneeVal = !empty($assignee['biometricsid']) ? $assignee['biometricsid'] : $assignee['empcode'];
                             // Trim to ensure clean comparison
                             $assigneeVal = trim($assigneeVal);
                         ?>
@@ -667,20 +667,8 @@ document.addEventListener('click', function(event) {
                 <div class="panel-section user-card">
                     <div class="user-avatar">
                         <?php 
-                        // Lookup the employee ID for photo display (same logic as layout.php)
-                        $photoUsername = $_SESSION['username'] ?? '';
-                        if (!empty($photoUsername) && isset($conn)) {
-                            try {
-                                $photoQuery = "SELECT \"biometricsid\", \"employeeid\" FROM \"lrn_master_list\" WHERE \"biometricsid\" = ? OR \"employeeid\" = ? LIMIT 1";
-                                $photoStmt = $conn->prepare($photoQuery);
-                                $photoStmt->execute([$photoUsername, $photoUsername]);
-                                $photoRow = $photoStmt->fetch(PDO::FETCH_ASSOC);
-                                if ($photoRow) {
-                                    $photoUsername = !empty($photoRow['EmployeeID']) ? $photoRow['EmployeeID'] : $photoRow['BiometricsID'];
-                                }
-                            } catch (Exception $e) { /* Ignore */ }
-                        }
-                        echo getEmployeePhotoImg($photoUsername, 'avatar-img'); 
+                        $avatarUsername = $_SESSION['username'] ?? '';
+                        echo getEmployeePhotoImg($avatarUsername, 'avatar-img'); 
                         ?>
                     </div>
                     <h3><?php echo htmlspecialchars(($_SESSION['firstname'] ?? '') . ' ' . ($_SESSION['lastname'] ?? '')); ?></h3>
@@ -868,34 +856,27 @@ document.addEventListener('click', function(event) {
                             // Fetch assignees from the database
                             // Try multiple join conditions to match empcode
                             $sql = "SELECT 
-     LTRIM(RTRIM(ir.empcode)) as empcode,
-     ml.BiometricsID,
-     COALESCE(
-         CASE 
-             WHEN ml.LastName IS NOT NULL OR ml.FirstName IS NOT NULL 
-             THEN LTRIM(RTRIM(ISNULL(ml.LastName, '') + ', ' + ISNULL(ml.FirstName, '') + ' ' + ISNULL(ml.MiddleName, '')))
-             ELSE NULL 
-         END,
-         ojt.full_name
-     ) as fullname,
-     ml.FirstName,
-     ml.LastName,
-     ml.MiddleName,
-     ml.Department,
-     ml.EmployeeID
- from it_ticket_roles ir 
- LEFT JOIN LRNPH_E.dbo.lrn_master_list ml on (
-     ml.BiometricsID = ir.empcode 
-     OR ml.EmployeeID = ir.empcode
- )
- LEFT JOIN LRNPH_E.app.app_ojt_employees ojt ON ir.empcode = ojt.employee_id
- WHERE ir.ticket_role LIKE '%it_pic%'
- and ir.isActive = 1
- ORDER BY 
-     CASE 
-         WHEN ml.LastName IS NOT NULL THEN ml.LastName 
-         ELSE ojt.full_name 
-     END";
+                                    TRIM(ir.empcode) as empcode,
+                                    ml.biometricsid,
+                                    COALESCE(
+                                        CASE 
+                                            WHEN ml.lastname IS NOT NULL OR ml.firstname IS NOT NULL 
+                                            THEN TRIM(COALESCE(ml.lastname, '') || ', ' || COALESCE(ml.firstname, '') || ' ' || COALESCE(ml.middlename, ''))
+                                            ELSE NULL 
+                                        END,
+                                        ojt.full_name
+                                    ) as fullname,
+                                    ml.department
+                                FROM it_ticket_roles ir 
+                                LEFT JOIN lrn_master_list ml ON (ml.biometricsid = ir.empcode OR ml.employeeid = ir.empcode)
+                                LEFT JOIN app_ojt_employees ojt ON ir.empcode = ojt.employee_id
+                                WHERE ir.ticket_role LIKE '%it_pic%'
+                                AND ir.isactive = 1
+                                ORDER BY 
+                                    CASE 
+                                        WHEN ml.lastname IS NOT NULL THEN ml.lastname 
+                                        ELSE ojt.full_name 
+                                    END";
                             $stmt = $conn->prepare($sql);
                             $stmt->execute();
 
@@ -907,7 +888,7 @@ document.addEventListener('click', function(event) {
                                     $empcode = htmlspecialchars($assignee['empcode']);
                                     
                                     // Use BiometricsID if available (preferred for storage/filtering consistency)
-                                    $valueToStore = !empty($assignee['BiometricsID']) ? trim($assignee['BiometricsID']) : $empcode;
+                                    $valueToStore = !empty($assignee['biometricsid']) ? trim($assignee['biometricsid']) : $empcode;
                                     
                                     // Use the fullname from the query (already constructed with COALESCE)
                                     $fullname = trim($assignee['fullname'] ?? '');
