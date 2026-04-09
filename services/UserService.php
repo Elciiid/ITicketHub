@@ -16,32 +16,32 @@ class UserService
     public function getManagedUsers($page = 1, $limit = 6)
     {
         $offset = ($page - 1) * $limit;
-        $sql = "
+        $sql = \"
             SELECT 
-                r.empcode as username,
+                r.\\\"empcode\\\" as \\\"username\\\",
                 COALESCE(
                     CASE 
-                        WHEN ml.LastName IS NOT NULL OR ml.FirstName IS NOT NULL 
-                        THEN LTRIM(RTRIM(ISNULL(ml.LastName, '') + ', ' + ISNULL(ml.FirstName, '') + ' ' + ISNULL(ml.MiddleName, '')))
+                        WHEN ml.\\\"lastname\\\" IS NOT NULL OR ml.\\\"firstname\\\" IS NOT NULL 
+                        THEN LTRIM(RTRIM(COALESCE(ml.\\\"lastname\\\", '') || ', ' || COALESCE(ml.\\\"firstname\\\", '') || ' ' || COALESCE(ml.\\\"middlename\\\", '')))
                         ELSE NULL 
                     END,
-                    ojt.full_name
-                ) as fullname,
-                COALESCE(ml.Department, 'OJT') as department,
-                r.ticket_role,
-                CASE WHEN r.isActive = 1 THEN 'active' ELSE 'inactive' END as status
-            FROM [LRNPH_E].[dbo].[it_ticket_roles] r
-            LEFT JOIN [LRNPH_E].[dbo].[lrn_master_list] ml 
-                ON r.empcode = ml.EmployeeID OR r.empcode = ml.BiometricsID
-            LEFT JOIN [LRNPH_E].[app].[app_ojt_employees] ojt
-                ON r.empcode = ojt.employee_id
+                    ojt.\\\"full_name\\\"
+                ) as \\\"fullname\\\",
+                COALESCE(ml.\\\"department\\\", 'OJT') as \\\"department\\\",
+                r.\\\"ticket_role\\\",
+                CASE WHEN r.\\\"isactive\\\" = 1 THEN 'active' ELSE 'inactive' END as \\\"status\\\"
+            FROM \\\"it_ticket_roles\\\" r
+            LEFT JOIN \\\"lrn_master_list\\\" ml 
+                ON r.\\\"empcode\\\" = ml.\\\"employeeid\\\" OR r.\\\"empcode\\\" = ml.\\\"biometricsid\\\"
+            LEFT JOIN \\\"app_ojt_employees\\\" ojt
+                ON r.\\\"empcode\\\" = ojt.\\\"employee_id\\\"
             ORDER BY 
-                CASE WHEN ml.LastName IS NOT NULL THEN ml.LastName ELSE ojt.full_name END
-            OFFSET :offset ROWS FETCH NEXT :limit ROWS ONLY
-        ";
+                CASE WHEN ml.\\\"lastname\\\" IS NOT NULL THEN ml.\\\"lastname\\\" ELSE ojt.\\\"full_name\\\" END
+            LIMIT :limit OFFSET :offset
+        \";
         $stmt = $this->conn->prepare($sql);
-        $stmt->bindValue(':offset', $offset, PDO::PARAM_INT);
         $stmt->bindValue(':limit', $limit, PDO::PARAM_INT);
+        $stmt->bindValue(':offset', $offset, PDO::PARAM_INT);
         $stmt->execute();
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
@@ -51,7 +51,7 @@ class UserService
      */
     public function countManagedUsers()
     {
-        $sql = "SELECT COUNT(*) FROM [LRNPH_E].[dbo].[it_ticket_roles]";
+        $sql = \"SELECT COUNT(*) FROM \\\"it_ticket_roles\\\"\";
         $stmt = $this->conn->prepare($sql);
         $stmt->execute();
         return $stmt->fetchColumn();
@@ -62,7 +62,7 @@ class UserService
      */
     public function getUserRole($empcode)
     {
-        $sql = "SELECT TOP 1 ticket_role FROM it_ticket_roles WHERE empcode = :empcode OR PARSENAME(REPLACE(empcode, '-', '.'), 1) = :empcode2";
+        $sql = \"SELECT \\\"ticket_role\\\" FROM \\\"it_ticket_roles\\\" WHERE \\\"empcode\\\" = :empcode LIMIT 1\";
         $stmt = $this->conn->prepare($sql);
         $stmt->bindValue(':empcode', $empcode);
         $stmt->bindValue(':empcode2', $empcode);
@@ -94,12 +94,13 @@ class UserService
     {
         // Try master list first
         $sql = "
-            SELECT TOP 1
-                LTRIM(RTRIM(ISNULL(LastName, '') + ', ' + ISNULL(FirstName, '') + ' ' + ISNULL(MiddleName, ''))) as fullname,
-                Department
-            FROM [LRNPH_E].[dbo].[lrn_master_list]
-            WHERE EmployeeID = :empcode OR BiometricsID = :empcode2
-        ";
+            SELECT
+                LTRIM(RTRIM(COALESCE(\"lastname\", '') || ', ' || COALESCE(\"firstname\", '') || ' ' || COALESCE(\"middlename\", ''))) as \"fullname\",
+                \"department\"
+            FROM \"lrn_master_list\"
+            WHERE \"employeeid\" = :empcode OR \"biometricsid\" = :empcode2
+            LIMIT 1
+        \";
         $stmt = $this->conn->prepare($sql);
         $stmt->bindValue(':empcode', $empcode);
         $stmt->bindValue(':empcode2', $empcode);
@@ -111,13 +112,13 @@ class UserService
         }
 
         // Fallback to OJT table
-        $sqlOjt = "
-            SELECT TOP 1
-                full_name as fullname,
-                'OJT' as Department
-            FROM [LRNPH_E].[app].[app_ojt_employees]
-            WHERE employee_id = :empcode
-        ";
+            SELECT
+                \"full_name\" as \"fullname\",
+                'OJT' as \"department\"
+            FROM \"app_ojt_employees\"
+            WHERE \"employee_id\" = :empcode
+            LIMIT 1
+        \";
         $stmtOjt = $this->conn->prepare($sqlOjt);
         $stmtOjt->bindValue(':empcode', $empcode);
         $stmtOjt->execute();
@@ -135,7 +136,7 @@ class UserService
             $this->conn->beginTransaction();
 
             // 2. Check existence in it_ticket_roles
-            $checkUser = $this->conn->prepare("SELECT COUNT(*) FROM it_ticket_roles WHERE empcode = :empcode");
+            $checkUser = $this->conn->prepare(\"SELECT COUNT(*) FROM \\\"it_ticket_roles\\\" WHERE \\\"empcode\\\" = :empcode\");
             $checkUser->execute([':empcode' => $empcode]);
             $exists = $checkUser->fetchColumn();
 
@@ -158,16 +159,16 @@ class UserService
                 $params = [':empcode' => $empcode];
 
                 if ($roleString !== null) {
-                    $fields[] = "ticket_role = :role";
+                    $fields[] = \"\\\"ticket_role\\\" = :role\";
                     $params[':role'] = $roleString;
                 }
                 if ($isActive !== null) {
-                    $fields[] = "isActive = :isActive";
+                    $fields[] = \"\\\"isactive\\\" = :isActive\";
                     $params[':isActive'] = $isActive;
                 }
 
                 if (!empty($fields)) {
-                    $sql = "UPDATE it_ticket_roles SET " . implode(', ', $fields) . " WHERE empcode = :empcode";
+                    $sql = \"UPDATE \\\"it_ticket_roles\\\" SET \" . implode(', ', $fields) . \" WHERE \\\"empcode\\\" = :empcode\";
                     $stmt = $this->conn->prepare($sql);
                     $stmt->execute($params);
                 }
@@ -180,7 +181,7 @@ class UserService
                 $newRole = $roleString ?? 'user';
                 $newActive = $isActive ?? 1;
 
-                $insert = $this->conn->prepare("INSERT INTO it_ticket_roles (empcode, ticket_role, isActive) VALUES (:empcode, :role, :isActive)");
+                $insert = $this->conn->prepare(\"INSERT INTO \\\"it_ticket_roles\\\" (\\\"empcode\\\", \\\"ticket_role\\\", \\\"isactive\\\") VALUES (:empcode, :role, :isActive)\");
                 $insert->execute([
                     ':empcode' => $empcode,
                     ':role' => $newRole,
@@ -230,7 +231,7 @@ class UserService
         // Simpler approach: Check master list, if null check OJT
         $fullname = $user;
 
-        $stmt = $this->conn->prepare("SELECT TOP 1 LTRIM(RTRIM(ISNULL(LastName, '') + ', ' + ISNULL(FirstName, '') + ' ' + ISNULL(MiddleName, ''))) as fullname FROM LRNPH_E.dbo.lrn_master_list WHERE BiometricsID = ? OR EmployeeID = ?");
+        $stmt = $this->conn->prepare(\"SELECT LTRIM(RTRIM(COALESCE(\\\"lastname\\\", '') || ', ' || COALESCE(\\\"firstname\\\", '') || ' ' || COALESCE(\\\"middlename\\\", ''))) as \\\"fullname\\\" FROM \\\"lrn_master_list\\\" WHERE \\\"biometricsid\\\" = ? OR \\\"employeeid\\\" = ? LIMIT 1\");
         $stmt->execute([$user, $user]);
         $row = $stmt->fetch(PDO::FETCH_ASSOC);
 
@@ -238,7 +239,7 @@ class UserService
             $fullname = $row['fullname'];
         } else {
             // Check OJT
-            $stmt = $this->conn->prepare("SELECT TOP 1 full_name FROM LRNPH_E.app.app_ojt_employees WHERE employee_id = ?");
+            $stmt = $this->conn->prepare(\"SELECT \\\"full_name\\\" FROM \\\"app_ojt_employees\\\" WHERE \\\"employee_id\\\" = ? LIMIT 1\");
             $stmt->execute([$user]);
             $row = $stmt->fetch(PDO::FETCH_ASSOC);
             if ($row) {
@@ -248,8 +249,8 @@ class UserService
 
         // Insert history log
         // Note: using ticket_id = 0 for system/user logs
-        $sql = "INSERT INTO it_ticket_history_logs (ticket_id, ticket_user, user_fullname, action, status, date_time) 
-                VALUES (?, ?, ?, ?, ?, GETDATE())";
+        $sql = \"INSERT INTO \\\"it_ticket_history_logs\\\" (\\\"ticket_id\\\", \\\"ticket_user\\\", \\\"user_fullname\\\", \\\"action\\\", \\\"status\\\", \\\"date_time\\\") 
+                VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)\";
         $stmt = $this->conn->prepare($sql);
         $stmt->execute([$ticketId, $user, $fullname, $action, $status]);
     }

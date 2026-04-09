@@ -2,29 +2,29 @@
 include 'controllers/it_tickets_controller.php';
 include 'api/fetch_categ.php';
 include 'api/photo_helper.php';
-include 'db/db.php';
+include 'includes/db.php';
 // Fetch assignee data from the database
 $sql = "SELECT 
-    ir.id,
-    LTRIM(RTRIM(ir.empcode)) as empcode, 
-    ml.BiometricsID,
-    COALESCE(ml.FirstName, ojt.full_name, ir.empcode) as firstname,
+    ir.\"id\",
+    LTRIM(RTRIM(ir.\"empcode\")) as \"empcode\", 
+    ml.\"biometricsid\",
+    COALESCE(ml.\"firstname\", ojt.\"full_name\", ir.\"empcode\") as \"firstname\",
     COALESCE(
-        NULLIF(LTRIM(RTRIM(ISNULL(ml.LastName, '') + ', ' + ISNULL(ml.FirstName, '') + ' ' + ISNULL(ml.MiddleName, ''))), ',  '),
-        ojt.full_name,
-        ir.empcode
-    ) as fullname,
-    COALESCE(ml.Department, 'OJT') as department
-FROM it_ticket_roles ir 
-LEFT JOIN LRNPH_E.dbo.lrn_master_list ml ON (ml.BiometricsID = ir.empcode OR ml.EmployeeID = ir.empcode)
-LEFT JOIN LRNPH_E.app.app_ojt_employees ojt ON ir.empcode = ojt.employee_id
-WHERE ir.ticket_role LIKE '%it_pic%' AND ir.isActive = 1";
+        NULLIF(LTRIM(RTRIM(COALESCE(ml.\"lastname\", '') || ', ' || COALESCE(ml.\"firstname\", '') || ' ' || COALESCE(ml.\"middlename\", ''))), ',  '),
+        ojt.\"full_name\",
+        ir.\"empcode\"
+    ) as \"fullname\",
+    COALESCE(ml.\"department\", 'OJT') as \"department\"
+FROM \"it_ticket_roles\" ir 
+LEFT JOIN \"lrn_master_list\" ml ON (ml.\"biometricsid\" = ir.\"empcode\" OR ml.\"employeeid\" = ir.\"empcode\")
+LEFT JOIN \"app_ojt_employees\" ojt ON ir.\"empcode\" = ojt.\"employee_id\"
+WHERE ir.\"ticket_role\" LIKE '%it_pic%' AND ir.\"isactive\" = 1";
 $stmt = $conn->prepare($sql);
 $stmt->execute();
 
 $assignees = $stmt->fetchAll(PDO::FETCH_ASSOC);
 // Fetch department data strictly from the master list
-$sqlDept = "SELECT DISTINCT Department as department FROM [LRNPH_E].[dbo].[lrn_master_list] WHERE Department IS NOT NULL AND Department != '' ORDER BY Department ASC";
+$sqlDept = \"SELECT DISTINCT \\\"department\\\" as \\\"department\\\" FROM \\\"lrn_master_list\\\" WHERE \\\"department\\\" IS NOT NULL AND \\\"department\\\" != '' ORDER BY \\\"department\\\" ASC\";
 $stmtDept = $conn->prepare($sqlDept);
 $stmtDept->execute();
 
@@ -671,7 +671,7 @@ document.addEventListener('click', function(event) {
                         $photoUsername = $_SESSION['username'] ?? '';
                         if (!empty($photoUsername) && isset($conn)) {
                             try {
-                                $photoQuery = "SELECT TOP 1 BiometricsID, EmployeeID FROM lrn_master_list WHERE BiometricsID = ? OR EmployeeID = ?";
+                                $photoQuery = "SELECT \"biometricsid\", \"employeeid\" FROM \"lrn_master_list\" WHERE \"biometricsid\" = ? OR \"employeeid\" = ? LIMIT 1";
                                 $photoStmt = $conn->prepare($photoQuery);
                                 $photoStmt->execute([$photoUsername, $photoUsername]);
                                 $photoRow = $photoStmt->fetch(PDO::FETCH_ASSOC);

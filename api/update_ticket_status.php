@@ -1,11 +1,11 @@
 <?php
-include '../db/db.php'; // your DB connection
+include '../includes/db.php'; // your DB connection
 
 if (isset($_POST['ticket_id'], $_POST['status'])) {
     $ticketId = intval($_POST['ticket_id']);
     $status = $_POST['status'];
 
-    $sql = "UPDATE it_ticket_request SET status = ?, date_updated = GETDATE() WHERE id = ?";
+    $sql = \"UPDATE \\\"it_ticket_request\\\" SET \\\"status\\\" = ?, \\\"date_updated\\\" = CURRENT_TIMESTAMP WHERE \\\"id\\\" = ?\";
     $stmt = $conn->prepare($sql);
 
     if ($stmt->execute([$status, $ticketId])) {

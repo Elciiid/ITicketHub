@@ -1,6 +1,6 @@
 <?php
 session_start();
-include 'db/db.php';
+include 'includes/db.php';
 require_once __DIR__ . '/../services/TicketService.php';
 require_once __DIR__ . '/../services/UserService.php';
 
@@ -15,7 +15,7 @@ if (!isset($_SESSION['username'])) {
 $username = $_SESSION['username'];
 
 // Fetch Department and Name
-$stmt = $conn->prepare("SELECT TOP (1) [department], [FirstName], [LastName], [MiddleName] FROM [lrn_master_list] WHERE BiometricsID = ? OR EmployeeID = ?");
+$stmt = $conn->prepare(\"SELECT \\\"department\\\", \\\"firstname\\\", \\\"lastname\\\", \\\"middlename\\\" FROM \\\"lrn_master_list\\\" WHERE \\\"biometricsid\\\" = ? OR \\\"employeeid\\\" = ? LIMIT 1\");
 $stmt->execute([$username, $username]);
 $userRow = $stmt->fetch(PDO::FETCH_ASSOC);
 $department = $userRow['department'] ?? null;
@@ -30,7 +30,7 @@ if (empty($_SESSION['firstname']) && empty($_SESSION['lastname'])) {
     } else {
         // OJT fallback
         try {
-            $ojtStmt = $conn->prepare("SELECT TOP 1 full_name FROM LRNPH_E.app.app_ojt_employees WHERE employee_id = ? OR biometricsID = ?");
+            $ojtStmt = $conn->prepare(\"SELECT \\\"full_name\\\" FROM \\\"app_ojt_employees\\\" WHERE \\\"employee_id\\\" = ? OR \\\"biometricsid\\\" = ? LIMIT 1\");
             $ojtStmt->execute([$username, $username]);
             $ojtRow = $ojtStmt->fetch(PDO::FETCH_ASSOC);
             if ($ojtRow && !empty($ojtRow['full_name'])) {
@@ -49,7 +49,7 @@ if (empty($_SESSION['firstname']) && empty($_SESSION['lastname'])) {
     } else {
         // Check if user is actually an OJT
         try {
-            $ojtCheck = $conn->prepare("SELECT COUNT(*) FROM LRNPH_E.app.app_ojt_employees WHERE employee_id = ? OR biometricsID = ?");
+            $ojtCheck = $conn->prepare(\"SELECT COUNT(*) FROM \\\"app_ojt_employees\\\" WHERE \\\"employee_id\\\" = ? OR \\\"biometricsid\\\" = ?\");
             $ojtCheck->execute([$username, $username]);
             if ($ojtCheck->fetchColumn() > 0) {
                 $_SESSION['department'] = 'OJT';
@@ -143,7 +143,7 @@ function hasSubmittedSurvey($conn, $ticketId, $user)
 {
     if (!$conn)
         return false;
-    $sql = "SELECT COUNT(*) FROM ticket_surveys WHERE ticket_id = ? AND requestor_empcode = ?";
+    $sql = \"SELECT COUNT(*) FROM \\\"ticket_surveys\\\" WHERE \\\"ticket_id\\\" = ? AND \\\"requestor_empcode\\\" = ?\";
     $stmt = $conn->prepare($sql);
     $stmt->execute([$ticketId, $user]);
     return $stmt->fetchColumn() > 0;
@@ -152,7 +152,7 @@ function hasSubmittedSurvey($conn, $ticketId, $user)
 function getSurveyResults($conn, $ticketId, $user)
 {
     // Note: Updated to select q1-q10 to match get_survey.php
-    $sql = "SELECT q1, q2, q3, q4, q5, q6, q7, q8, q9, q10, comments, submitted_at FROM ticket_surveys WHERE ticket_id = ? AND requestor_empcode = ?";
+    $sql = \"SELECT \\\"q1\\\", \\\"q2\\\", \\\"q3\\\", \\\"q4\\\", \\\"q5\\\", \\\"q6\\\", \\\"q7\\\", \\\"q8\\\", \\\"q9\\\", \\\"q10\\\", \\\"comments\\\", \\\"submitted_at\\\" FROM \\\"ticket_surveys\\\" WHERE \\\"ticket_id\\\" = ? AND \\\"requestor_empcode\\\" = ?\";
     $stmt = $conn->prepare($sql);
     $stmt->execute([$ticketId, $user]);
     return $stmt->fetch(PDO::FETCH_ASSOC);
@@ -160,7 +160,7 @@ function getSurveyResults($conn, $ticketId, $user)
 
 function getSurveyQuestions($conn)
 {
-    $sql = "SELECT id, question_text FROM survey_questions WHERE is_active = 1 ORDER BY sort_order ASC";
+    $sql = \"SELECT \\\"id\\\", \\\"question_text\\\" FROM \\\"survey_questions\\\" WHERE \\\"is_active\\\" = 1 ORDER BY \\\"sort_order\\\" ASC\";
     $stmt = $conn->prepare($sql);
     $stmt->execute();
     return $stmt->fetchAll(PDO::FETCH_ASSOC);

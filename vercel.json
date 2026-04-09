@@ -1,0 +1,22 @@
+{
+  "version": 2,
+  "regions": ["sin1"],
+  "functions": {
+    "**/*.php": {
+      "runtime": "vercel-php@0.7.2",
+      "includeFiles": "{includes,components,actions,utils,services,controllers,api,css,js,img}/**"
+    }
+  },
+  "routes": [
+    {
+      "src": "/(css|js|img|uploads)/(.*)",
+      "dest": "/$1/$2",
+      "continue": true
+    },
+    {
+      "src": "/(.*)",
+      "dest": "/$1",
+      "continue": true
+    }
+  ]
+}

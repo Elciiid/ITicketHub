@@ -1,6 +1,6 @@
 <?php
 session_start();
-include 'db/db.php';
+include 'includes/db.php';
 
 date_default_timezone_set('Asia/Manila'); // Set PHP timezone to PH
 
@@ -15,7 +15,7 @@ require_once __DIR__ . '/../services/UserService.php';
 $username = $_SESSION['username']; // This should be the empcode or username
 
 // Fetch department
-$sql = "SELECT TOP (1) [Department] FROM [lrn_master_list] WHERE [BiometricsID] = ?";
+$sql = "SELECT \"department\" FROM \"lrn_master_list\" WHERE \"biometricsid\" = ? LIMIT 1";
 $stmt = $conn->prepare($sql);
 $stmt->execute([$username]);
 $department = $stmt->fetchColumn();
@@ -53,19 +53,19 @@ $isITStaff = UserService::hasRole($userRole, 'it_admin') || UserService::hasRole
 
 // Build the query with filters — removed expensive STRING_SPLIT/STRING_AGG correlated subquery
 $query = "SELECT 
-    itr.id, 
-    itr.status, 
-    itr.date_created, 
-    COALESCE(ml.LastName + ', ' + ml.FirstName + ' ' + ml.MiddleName, itr.requestor) AS requestor, 
-    itr.department, 
-    itr.subject, 
-    itr.urgency_level,
-    itr.assigned_to,
-    itr.date_updated,
-    COALESCE(c.category_name, 'Uncategorized') AS category_name
-FROM it_ticket_request itr
-LEFT JOIN lrn_master_list ml ON itr.requestor = ml.BiometricsID
-LEFT JOIN it_ticket_categ c ON itr.categ_id = c.id
+    itr.\"id\", 
+    itr.\"status\", 
+    itr.\"date_created\", 
+    COALESCE(ml.\"lastname\" || ', ' || ml.\"firstname\" || ' ' || ml.\"middlename\", itr.\"requestor\") AS \"requestor\", 
+    itr.\"department\", 
+    itr.\"subject\", 
+    itr.\"urgency_level\",
+    itr.\"assigned_to\",
+    itr.\"date_updated\",
+    COALESCE(c.\"category_name\", 'Uncategorized') AS \"category_name\"
+FROM \"it_ticket_request\" itr
+LEFT JOIN \"lrn_master_list\" ml ON itr.\"requestor\" = ml.\"biometricsid\"
+LEFT JOIN \"it_ticket_categ\" c ON itr.\"categ_id\" = c.\"id\"
 WHERE 1=1";
 
 // Apply role-based filtering
@@ -139,8 +139,8 @@ if ($completionDate) {
 if ($urgencyFilter) {
     $stmt->bindValue(':urgency_level', $urgencyFilter);
 }
-$stmt->bindValue(':offset', $offset, PDO::PARAM_INT);
 $stmt->bindValue(':limit', $limit, PDO::PARAM_INT);
+$stmt->bindValue(':offset', $offset, PDO::PARAM_INT);
 
 $stmt->execute();
 $tickets = $stmt->fetchAll(PDO::FETCH_ASSOC);
@@ -288,12 +288,12 @@ $yearEnd = date('Y-12-31 23:59:59');
 // Query for total tickets per month — SARGable date filter
 $monthlyTicketsQuery = "
 SELECT 
-    MONTH(date_created) AS month,
-    COUNT(*) AS created_count,
-    SUM(CASE WHEN status = 'Closed' THEN 1 ELSE 0 END) AS completed_count,
-    SUM(CASE WHEN status = 'Open' THEN 1 ELSE 0 END) AS open_count
+    EXTRACT(MONTH FROM \"date_created\") AS \"month\",
+    COUNT(*) AS \"created_count\",
+    SUM(CASE WHEN \"status\" = 'Closed' THEN 1 ELSE 0 END) AS \"completed_count\",
+    SUM(CASE WHEN \"status\" = 'Open' THEN 1 ELSE 0 END) AS \"open_count\"
 FROM 
-    it_ticket_request
+    \"it_ticket_request\"
 WHERE 
     date_created >= :year_start AND date_created <= :year_end
 ";
@@ -335,10 +335,10 @@ $monthEnd = date('Y-m-t 23:59:59');
 
 $departmentRequestsQuery = "
     SELECT 
-        department,
-        COUNT(*) AS request_count
+        \"department\",
+        COUNT(*) AS \"request_count\"
     FROM 
-        it_ticket_request
+        \"it_ticket_request\"
     WHERE 
         date_created >= :month_start AND date_created <= :month_end
 ";
@@ -374,14 +374,14 @@ foreach ($departmentRequestsResults as $row) {
 // Tickets per day query — SARGable date filter (no CAST)
 $ticketsPerDayQuery = "
 SELECT 
-    DATEPART(WEEKDAY, completed_by_dt) AS day_of_week,
-    DATENAME(WEEKDAY, completed_by_dt) AS day_name,
-    COUNT(*) AS closed_tickets_count
+    EXTRACT(DOW FROM \"completed_by_dt\") + 1 AS \"day_of_week\",
+    TO_CHAR(\"completed_by_dt\", 'Day') AS \"day_name\",
+    COUNT(*) AS \"closed_tickets_count\"
 FROM 
-    it_ticket_request
+    \"it_ticket_request\"
 WHERE 
-    status = 'Closed'
-    AND completed_by_dt >= :date_from AND completed_by_dt < DATEADD(day, 1, CAST(:date_to AS DATE))
+    \"status\" = 'Closed'
+    AND \"completed_by_dt\" >= :date_from AND \"completed_by_dt\" < (CAST(:date_to AS DATE) + INTERVAL '1 day')
 ";
 
 // Apply role filtering to tickets per day stats
