@@ -1,6 +1,6 @@
 <?php
 session_start();
-include '../db/db.php';
+require_once __DIR__ . '/../includes/db.php';
 require_once '../services/CategoryHelper.php';
 
 header('Content-Type: application/json');

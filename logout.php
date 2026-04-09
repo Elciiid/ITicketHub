@@ -2,7 +2,7 @@
 /**
  * logout.php
  */
-include 'includes/db.php';
+include_once __DIR__ . '/includes/db.php';
 
 session_unset();
 session_destroy();

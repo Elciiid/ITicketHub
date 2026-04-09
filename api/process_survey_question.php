@@ -1,7 +1,7 @@
 <?php
 // process_survey_question.php
 session_start();
-include '../db/db.php';
+require_once __DIR__ . '/../includes/db.php';
 require_once '../services/SurveyQuestionHelper.php';
 require_once '../services/UserService.php';
 

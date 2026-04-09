@@ -1,13 +1,13 @@
 <?php
-include 'controllers/it_tickets_dashboard_controller.php';
-include 'api/photo_helper.php';
-include 'includes/layout.php';
+include_once __DIR__ . '/controllers/it_tickets_dashboard_controller.php';
+include_once __DIR__ . '/api/photo_helper.php';
+include_once __DIR__ . '/includes/layout.php';
 
 if (!UserService::hasRole($userRole ?? '', 'it_admin')) {
     header("Location: index.php");
     exit();
 }
-require_once 'services/CategoryHelper.php';
+require_once __DIR__ . '/services/CategoryHelper.php';
 
 // Initialize Category Helper
 $categoryHelper = new CategoryHelper($conn);

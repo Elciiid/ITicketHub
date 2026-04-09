@@ -1,7 +1,6 @@
 <?php
-session_start();
-include '../db/db.php';
-require_once '../services/TicketService.php';
+require_once __DIR__ . '/../includes/db.php';
+require_once __DIR__ . '/../services/TicketService.php';
 
 header('Content-Type: application/json');
 

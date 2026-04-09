@@ -1,5 +1,5 @@
 <?php
-include 'includes/db.php';
+include_once __DIR__ . '/../includes/db.php';
 
 date_default_timezone_set('Asia/Manila'); // Set PHP timezone to PH
 

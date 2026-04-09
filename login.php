@@ -3,8 +3,8 @@
  * login.php
  * Custom local login page for ITicketHub
  */
-include 'includes/db.php';
-include 'services/UserService.php';
+include_once __DIR__ . '/includes/db.php';
+include_once __DIR__ . '/services/UserService.php';
 
 $error = '';
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {

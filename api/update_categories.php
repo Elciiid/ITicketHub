@@ -1,5 +1,5 @@
 <?php
-require_once '../db/db.php';
+require_once __DIR__ . '/../includes/db.php';
 
 $categories = [
     'Face Terminal/Door Access',

@@ -1,7 +1,7 @@
 <?php
-include 'controllers/it_tickets_dashboard_controller.php';
-include 'api/photo_helper.php';
-include 'includes/layout.php';
+include_once __DIR__ . '/controllers/it_tickets_dashboard_controller.php';
+include_once __DIR__ . '/api/photo_helper.php';
+include_once __DIR__ . '/includes/layout.php';
 
 renderPageStart('ITicketHub - Dashboard');
 renderTopNav('dashboard', $userRole);

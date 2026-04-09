@@ -1,6 +1,5 @@
 <?php
-session_start();
-include '../db/db.php';
+require_once __DIR__ . '/../includes/db.php';
 require_once '../services/TicketService.php';
 
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {

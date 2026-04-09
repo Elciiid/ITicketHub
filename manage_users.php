@@ -1,8 +1,8 @@
 <?php
-include 'controllers/it_tickets_dashboard_controller.php';
-include 'api/photo_helper.php';
-include 'includes/layout.php';
-require_once 'services/UserService.php';
+include_once __DIR__ . '/controllers/it_tickets_dashboard_controller.php';
+include_once __DIR__ . '/api/photo_helper.php';
+include_once __DIR__ . '/includes/layout.php';
+require_once __DIR__ . '/services/UserService.php';
 
 // Pagination
 $page = isset($_GET['page']) ? (int) $_GET['page'] : 1;

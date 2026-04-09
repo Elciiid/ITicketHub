@@ -1,8 +1,8 @@
 <?php
-require_once 'includes/db.php';
-require_once 'controllers/it_tickets_controller.php';
-require_once 'api/fetch_categ.php';
-require_once 'api/photo_helper.php';
+require_once __DIR__ . '/includes/db.php';
+require_once __DIR__ . '/controllers/it_tickets_controller.php';
+require_once __DIR__ . '/api/fetch_categ.php';
+require_once __DIR__ . '/api/photo_helper.php';
 
 // Fetch assignee data from the database
 $sql = "SELECT 
