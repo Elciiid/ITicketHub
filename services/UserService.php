@@ -20,15 +20,23 @@ class UserService
         $stmt->execute([':username' => $username]);
         $user = $stmt->fetch(PDO::FETCH_ASSOC);
 
-        if ($user && $user['isactive'] == 1 && password_verify($password, $user['password'])) {
-            // Set session variables
-            $_SESSION['user_id'] = $user['empcode'];
-            $_SESSION['username'] = $user['empcode'];
-            $_SESSION['role'] = $user['ticket_role'];
-            
+        if ($user && $user['isactive'] == 1 && !empty($user['password']) && password_verify($password, $user['password'])) {
+            // Set core session variables
+            $_SESSION['user_id']   = $user['empcode'];
+            $_SESSION['username']  = $user['empcode'];
+            $_SESSION['role']      = $user['ticket_role'];
+
+            // Resolve display name for the session
+            $details = $this->getUserDetails($user['empcode']);
+            if ($details && !empty($details['fullname'])) {
+                $_SESSION['fullname'] = trim($details['fullname']);
+            } else {
+                $_SESSION['fullname'] = $user['empcode'];
+            }
+
             // Log successful login
             $this->logHistory(0, $user['empcode'], "Successfully logged in via local authentication", "Login Success");
-            
+
             return true;
         }
         return false;
@@ -101,10 +109,16 @@ class UserService
     {
         if (!$userRole)
             return false;
-        // Normalize both input and target: lowercase, trim, and treat spaces/underscores the same
+
+        // Normalize both input and target: lowercase, trim, treat spaces/underscores the same
         $roles = array_map(function ($r) {
             return str_replace('_', ' ', trim(strtolower($r)));
         }, explode(',', $userRole));
+
+        // super_admin has all privileges
+        if (in_array('super admin', $roles)) {
+            return true;
+        }
 
         $normalizedTarget = str_replace('_', ' ', strtolower($targetRole));
         return in_array($normalizedTarget, $roles);

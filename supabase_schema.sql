@@ -21,7 +21,8 @@ CREATE TABLE "app_ojt_employees" (
 CREATE TABLE "it_ticket_roles" (
     "empcode" VARCHAR(50) PRIMARY KEY,
     "ticket_role" VARCHAR(100),
-    "isactive" INTEGER DEFAULT 1
+    "isactive" INTEGER DEFAULT 1,
+    "password" VARCHAR(255)
 );
 
 -- 4. Ticket Categories
@@ -118,6 +119,15 @@ INSERT INTO "it_ticket_roles" ("empcode", "ticket_role", "isactive") VALUES
 ('1002', 'user', 1),
 ('1003', 'user', 1),
 ('1004', 'it_pic', 1);
+
+-- Super Admin account (username: admin | password: password)
+-- Hash generated with: password_hash('password', PASSWORD_BCRYPT)
+INSERT INTO "it_ticket_roles" ("empcode", "ticket_role", "isactive", "password") VALUES
+('admin', 'super_admin', 1, '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi');
+
+-- Super Admin display name
+INSERT INTO "lrn_master_list" ("biometricsid", "employeeid", "firstname", "lastname", "department") VALUES
+('admin', 'admin', 'Super', 'Admin', 'IT Department');
 
 -- Mock Categories
 INSERT INTO "it_ticket_categ" ("category_name") VALUES
